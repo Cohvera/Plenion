@@ -167,6 +167,7 @@ chown -R "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_ROOT" "$APPS_ROOT"
 docker compose -f "$DEPLOY_ROOT/docker-compose.yml" up -d
 
 ufw allow "$SSH_PORT/tcp"
+ufw allow 3000/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable

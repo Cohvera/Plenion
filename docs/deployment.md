@@ -105,21 +105,22 @@ An app repository needs a `docker-compose.yml` like the template in
 
 The important pieces are:
 
-- expose the app only inside Docker, not directly on the host
+- publish the app on host port `3000` for direct testing
 - join the external `web` network
 - add a network alias that matches `APP_NAME`
 
 ## Without A Domain
 
-Until DNS is available, the deploy script creates a temporary path route:
+Until DNS is available, the compose file exposes the app directly on host
+port `3000` so you can test it without port `80`:
 
 ```text
-http://SERVER_IP/app-name/
+http://SERVER_IP:3000/
 ```
 
-This works well for APIs and simple apps. Some frontend frameworks expect to
-run at `/` and may need a base path setting. Once a domain exists, use a domain
-route instead.
+This works well for direct server testing and avoids conflicts when port `80`
+is already occupied. Once a domain exists, you can switch back to a reverse
+proxy route if you want.
 
 ## With A Domain Later
 
@@ -129,10 +130,8 @@ Point DNS to the server:
 A app.example.com -> SERVER_IP
 ```
 
-Then deploy with:
+Then you can keep using direct host access or switch to a reverse proxy later:
 
 ```text
-APP_HOST=app.example.com
+http://SERVER_IP:3000/
 ```
-
-Caddy will automatically request HTTPS certificates.

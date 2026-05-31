@@ -36,17 +36,21 @@ The first deployment target is an Ubuntu/Debian server with SSH access, Docker
 Compose, Caddy, and GitHub Actions. See `docs/deployment.md` for the server
 bootstrap, GitHub secrets, and app deployment conventions.
 
-This app listens on container port `3000`, so deploy it with:
+This app listens on container port `3000`, and the compose file now publishes
+it on host port `3000` by default so you can test it directly even if port `80`
+is already in use.
 
 ```bash
-APP_NAME=cohvera APP_PORT=3000 APP_HOST="" /opt/deploy/bin/deploy-compose-app.sh
+docker compose up -d --build
 ```
 
 Without a domain it will be available at:
 
 ```text
-http://SERVER_IP/cohvera/
+http://SERVER_IP:3000/
 ```
+
+If the server firewall is enabled, allow port `3000/tcp` for direct testing.
 
 ## Development
 
