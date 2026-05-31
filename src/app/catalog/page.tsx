@@ -60,9 +60,11 @@ export default async function CatalogPage({
 
   const supplierNames = data.suppliers.map((supplier) => supplier.supplierName);
   const totalFiltered = data.items.length;
-  const pricedEvidence = data.priceEvidence.filter((item) => item.netPrice > 0);
-  const minEvidencePrice = pricedEvidence.length > 0 ? Math.min(...pricedEvidence.map((item) => item.netPrice)) : 0;
-  const maxEvidencePrice = pricedEvidence.length > 0 ? Math.max(...pricedEvidence.map((item) => item.netPrice)) : 0;
+  const pricedEvidence = data.priceEvidence.filter((item) => (item.netPrice ?? 0) > 0);
+  const minEvidencePrice =
+    pricedEvidence.length > 0 ? Math.min(...pricedEvidence.map((item) => item.netPrice ?? 0)) : 0;
+  const maxEvidencePrice =
+    pricedEvidence.length > 0 ? Math.max(...pricedEvidence.map((item) => item.netPrice ?? 0)) : 0;
 
   return (
     <div className="space-y-6">
