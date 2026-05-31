@@ -325,14 +325,12 @@ export async function getLatestPlenionSupplierCatalogData(options?: {
   const supplier = normalizeText(options?.supplier).slice(0, 100);
 
   const allItems = raw.items.map((item, index) => ({
-    id: `${item.supplierName}:${item.itemCode}:${index}`,
     ...mapRow({
       id: `${item.supplierName}:${item.itemCode}:${index}`,
       ...item
     })
   }));
   const allEvidence = raw.priceEvidence.map((entry, index) => ({
-    id: `${entry.supplierName}:${entry.sourceFileName}:${entry.documentId ?? "doc"}:${index}`,
     ...mapEvidence({
       id: `${entry.supplierName}:${entry.sourceFileName}:${entry.documentId ?? "doc"}:${index}`,
       ...entry
@@ -386,14 +384,12 @@ export async function getPlenionSupplierCatalogItemDetail(
   if (!raw) return null;
 
   const allItems = raw.items.map((item, index) => ({
-    id: `${item.supplierName}:${item.itemCode}:${index}`,
     ...mapRow({
       id: `${item.supplierName}:${item.itemCode}:${index}`,
       ...item
     })
   }));
   const allEvidence = raw.priceEvidence.map((entry, index) => ({
-    id: `${entry.supplierName}:${entry.sourceFileName}:${entry.documentId ?? "doc"}:${index}`,
     ...mapEvidence({
       id: `${entry.supplierName}:${entry.sourceFileName}:${entry.documentId ?? "doc"}:${index}`,
       ...entry
