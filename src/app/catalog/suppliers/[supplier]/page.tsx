@@ -64,10 +64,10 @@ export default async function SupplierCatalogPage({
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="Catalog items" value={String(supplierRow?.itemCount ?? data.items.length)} />
-          <InfoCard label="Price evidence" value={String(supplierRow?.evidenceCount ?? data.priceEvidence.length)} />
+          <InfoCard label="Price rows" value={String(supplierRow?.priceCatalogCount ?? data.priceCatalog.length)} />
           <InfoCard
             label="Evidence prices"
-            value={`${formatPrice(supplierRow?.minEvidencePrice ?? 0)} - ${formatPrice(supplierRow?.maxEvidencePrice ?? 0)}`}
+            value={`${formatPrice(supplierRow?.minCatalogPrice ?? 0)} - ${formatPrice(supplierRow?.maxCatalogPrice ?? 0)}`}
           />
           <InfoCard label="Invoice / order lines" value={`${data.priceEvidence.length} rows`} />
         </div>
@@ -75,36 +75,34 @@ export default async function SupplierCatalogPage({
 
       <section className="panel overflow-hidden">
         <div className="border-b border-slate-200 px-5 py-4">
-          <p className="field-label">Items</p>
-          <h3 className="text-lg font-bold text-ink">{data.items.length} matching catalog items</h3>
+          <p className="field-label">Price rows</p>
+          <h3 className="text-lg font-bold text-ink">{data.priceCatalog.length} matching price rows</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <Th>Model</Th>
-                <Th>Description</Th>
+                <Th>Item / reference</Th>
                 <Th>Brut</Th>
                 <Th>Net</Th>
+                <Th>Evidence</Th>
                 <Th>Source</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {data.items.map((item) => (
+              {data.priceCatalog.map((item) => (
                 <tr key={item.id} className="align-top hover:bg-slate-50">
                   <Td>
-                    <Link href={`/catalog/items/${item.id}`} className="font-semibold text-ink hover:underline">
-                      {item.itemCode}
-                    </Link>
-                  </Td>
-                  <Td>
-                    <p className="text-sm text-ink">{item.itemNameNl ?? item.itemNameFr ?? "No description"}</p>
+                    <p className="text-sm font-semibold text-ink">{item.itemName ?? item.itemCode ?? "No item"}</p>
+                    <p className="mt-1 text-xs text-steel">{item.itemCode ?? "No code"}</p>
                     <p className="mt-1 text-xs text-steel">
-                      {item.series ?? "No series"} / {item.type ?? "No type"}
+                      {item.documentReference ?? "No reference"}
+                      {item.documentDate ? ` - ${item.documentDate}` : ""}
                     </p>
                   </Td>
-                  <Td className="font-semibold text-ink">{formatPrice(item.listPrice)}</Td>
-                  <Td className="font-semibold text-ink">{formatPrice(item.netPrice)}</Td>
+                  <Td className="font-semibold text-ink">{formatPrice(item.brutPrice ?? 0)}</Td>
+                  <Td className="font-semibold text-ink">{formatPrice(item.netPrice ?? 0)}</Td>
+                  <Td>{item.evidenceCount} rows</Td>
                   <Td>
                     <p className="text-sm text-ink">{item.sourceFileName}</p>
                     <p className="mt-1 text-xs text-steel">{item.priceSource}</p>

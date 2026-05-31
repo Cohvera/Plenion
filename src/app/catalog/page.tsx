@@ -59,12 +59,12 @@ export default async function CatalogPage({
   }
 
   const supplierNames = data.suppliers.map((supplier) => supplier.supplierName);
-  const totalFiltered = data.items.length;
-  const pricedEvidence = data.priceEvidence.filter((item) => (item.netPrice ?? 0) > 0);
-  const minEvidencePrice =
-    pricedEvidence.length > 0 ? Math.min(...pricedEvidence.map((item) => item.netPrice ?? 0)) : 0;
-  const maxEvidencePrice =
-    pricedEvidence.length > 0 ? Math.max(...pricedEvidence.map((item) => item.netPrice ?? 0)) : 0;
+  const totalFiltered = data.priceCatalog.length;
+  const pricedCatalog = data.priceCatalog.filter((item) => (item.netPrice ?? 0) > 0);
+  const minCatalogPrice =
+    pricedCatalog.length > 0 ? Math.min(...pricedCatalog.map((item) => item.netPrice ?? 0)) : 0;
+  const maxCatalogPrice =
+    pricedCatalog.length > 0 ? Math.max(...pricedCatalog.map((item) => item.netPrice ?? 0)) : 0;
 
   return (
     <div className="space-y-6">
@@ -78,7 +78,7 @@ export default async function CatalogPage({
             </div>
             <div className="space-y-3">
               <h2 className="max-w-3xl text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-                Search supplier items, brut prices, and net prices from the Plenion backup.
+                Search supplier prices, brut prices, and net prices from the Plenion backup.
               </h2>
               <p className="max-w-3xl text-sm leading-6 text-slate-300 sm:text-base">
                 This view is grounded in the local HFSQL backup only. It combines supplier master data,
@@ -132,9 +132,9 @@ export default async function CatalogPage({
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <MetricCard label="Suppliers" value={String(data.summary.supplierCount)} detail="Distinct supplier names found" />
-            <MetricCard label="Items" value={String(data.summary.itemCount)} detail={`${totalFiltered} visible in current filter`} />
-            <MetricCard label="Price evidence" value={String(data.priceEvidence.length)} detail="Local invoice and order lines extracted" />
-            <MetricCard label="Evidence price" value={`${formatPrice(minEvidencePrice)} - ${formatPrice(maxEvidencePrice)}`} detail="Net unit prices in the visible set" />
+            <MetricCard label="Item hints" value={String(data.summary.itemCount)} detail={`${data.items.length} raw rows visible in current filter`} />
+            <MetricCard label="Price rows" value={String(data.priceCatalog.length)} detail="Grouped local price evidence" />
+            <MetricCard label="Price range" value={`${formatPrice(minCatalogPrice)} - ${formatPrice(maxCatalogPrice)}`} detail="Net unit prices in the visible set" />
           </div>
         </div>
       </section>
@@ -154,9 +154,9 @@ export default async function CatalogPage({
               >
                 <p className="font-semibold text-ink">{supplier.supplierName}</p>
                 <p className="mt-1 text-sm text-steel">{supplier.itemCount} catalog items</p>
-                <p className="mt-1 text-sm text-steel">{supplier.evidenceCount} price evidence rows</p>
+                <p className="mt-1 text-sm text-steel">{supplier.priceCatalogCount} priced rows</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.18em] text-steel">
-                  Evidence {formatPrice(supplier.minEvidencePrice)} - {formatPrice(supplier.maxEvidencePrice)}
+                  Price {formatPrice(supplier.minCatalogPrice)} - {formatPrice(supplier.maxCatalogPrice)}
                 </p>
               </Link>
             ))}
@@ -166,7 +166,7 @@ export default async function CatalogPage({
         <div className="panel overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
             <div>
-              <p className="field-label">Catalog list</p>
+              <p className="field-label">Price catalog</p>
               <h3 className="text-xl font-bold text-ink">
                 {totalFiltered} item{totalFiltered === 1 ? "" : "s"} match your search
               </h3>
@@ -174,45 +174,43 @@ export default async function CatalogPage({
             <ShoppingCart className="h-5 w-5 text-steel" aria-hidden="true" />
           </div>
 
-          {data.items.length === 0 ? (
-            <div className="p-5 text-sm text-steel">No catalog items matched the current search.</div>
+          {data.priceCatalog.length === 0 ? (
+            <div className="p-5 text-sm text-steel">No grouped price rows matched the current search.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
                     <Th>Supplier</Th>
-                    <Th>Model</Th>
-                    <Th>Description</Th>
+                    <Th>Item / reference</Th>
                     <Th>Brut</Th>
                     <Th>Net</Th>
-                    <Th>Discount</Th>
+                    <Th>Evidence</Th>
                     <Th>Source</Th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {data.items.map((item) => (
+                  {data.priceCatalog.map((item) => (
                     <tr key={item.id} className="align-top hover:bg-slate-50">
                       <Td>
-                        <Link href={`/catalog/items/${item.id}`} className="font-semibold text-sky-800 hover:underline">
+                        <Link
+                          href={`/catalog/suppliers/${encodeURIComponent(item.supplierName)}`}
+                          className="font-semibold text-sky-800 hover:underline"
+                        >
                           {item.supplierName}
                         </Link>
                       </Td>
                       <Td>
-                        <Link href={`/catalog/items/${item.id}`} className="font-semibold text-ink hover:underline">
-                          {item.itemCode}
-                        </Link>
+                        <p className="text-sm font-semibold text-ink">{item.itemName ?? item.itemCode ?? "No item"}</p>
+                        <p className="mt-1 text-xs text-steel">{item.itemCode ?? "No code"}</p>
                         <p className="mt-1 text-xs text-steel">
-                          {item.series ?? "No series"} / {item.type ?? "No type"}
+                          {item.documentReference ?? "No reference"}
+                          {item.documentDate ? ` - ${item.documentDate}` : ""}
                         </p>
                       </Td>
-                      <Td>
-                        <p className="text-sm text-ink">{item.itemNameNl ?? item.itemNameFr ?? "No description"}</p>
-                        <p className="mt-1 text-xs text-steel">{item.itemNameFr ?? item.itemNameNl ?? ""}</p>
-                      </Td>
-                      <Td className="font-semibold text-ink">{formatPrice(item.listPrice)}</Td>
-                      <Td className="font-semibold text-ink">{formatPrice(item.netPrice)}</Td>
-                      <Td>{formatPercent(item.discountRate)}</Td>
+                      <Td className="font-semibold text-ink">{formatPrice(item.brutPrice ?? 0)}</Td>
+                      <Td className="font-semibold text-ink">{formatPrice(item.netPrice ?? 0)}</Td>
+                      <Td>{item.evidenceCount} rows</Td>
                       <Td>
                         <p className="text-sm text-ink">{item.sourceFileName}</p>
                         <p className="mt-1 text-xs text-steel">{item.priceSource}</p>
@@ -224,6 +222,55 @@ export default async function CatalogPage({
             </div>
           )}
         </div>
+      </section>
+
+      <section className="panel overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div>
+            <p className="field-label">Raw item hints</p>
+            <h3 className="text-xl font-bold text-ink">{data.items.length} backup rows</h3>
+          </div>
+          <Sparkles className="h-5 w-5 text-steel" aria-hidden="true" />
+        </div>
+        {data.items.length === 0 ? (
+          <div className="p-5 text-sm text-steel">No raw item hints matched the current search.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <Th>Supplier</Th>
+                  <Th>Model</Th>
+                  <Th>Description</Th>
+                  <Th>Brut</Th>
+                  <Th>Net</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {data.items.slice(0, 20).map((item) => (
+                  <tr key={item.id} className="align-top hover:bg-slate-50">
+                    <Td>
+                      <Link href={`/catalog/items/${item.id}`} className="font-semibold text-sky-800 hover:underline">
+                        {item.supplierName}
+                      </Link>
+                    </Td>
+                    <Td>
+                      <p className="font-semibold text-ink">{item.itemCode}</p>
+                      <p className="mt-1 text-xs text-steel">
+                        {item.series ?? "No series"} / {item.type ?? "No type"}
+                      </p>
+                    </Td>
+                    <Td>
+                      <p className="text-sm text-ink">{item.itemNameNl ?? item.itemNameFr ?? "No description"}</p>
+                    </Td>
+                    <Td className="font-semibold text-ink">{formatPrice(item.listPrice)}</Td>
+                      <Td className="font-semibold text-ink">{formatPrice(item.netPrice ?? 0)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="panel overflow-hidden">

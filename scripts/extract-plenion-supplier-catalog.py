@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+from collections import Counter
 from io import BytesIO
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -175,6 +176,29 @@ class PriceEvidenceRow:
     brut_price: Decimal | None
     net_price: Decimal | None
     vat_rate: Decimal | None
+    currency: str
+    price_source: str
+    source_party: str | None
+    raw: dict[str, Any]
+
+
+@dataclass
+class PriceCatalogRow:
+    supplier_name: str
+    source_file_name: str
+    source_type: str
+    document_id: str | None
+    document_date: str | None
+    document_reference: str | None
+    item_code: str | None
+    item_name: str | None
+    evidence_count: int
+    brut_price: Decimal | None
+    net_price: Decimal | None
+    min_brut_price: Decimal | None
+    max_brut_price: Decimal | None
+    min_net_price: Decimal | None
+    max_net_price: Decimal | None
     currency: str
     price_source: str
     source_party: str | None
@@ -748,6 +772,92 @@ def extract_price_evidence(
     return evidence
 
 
+def normalize_join_key(value: str | None) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip()).lower()
+
+
+def pick_preferred_text(values: list[str | None]) -> str | None:
+    candidates = [value.strip() for value in values if value and value.strip()]
+    if not candidates:
+        return None
+    counts = Counter(candidates)
+    return sorted(counts.items(), key=lambda item: (-item[1], -len(item[0]), item[0]))[0][0]
+
+
+def build_price_catalog_rows(price_evidence_rows: list[PriceEvidenceRow]) -> list[PriceCatalogRow]:
+    groups: dict[tuple[str, str, str], list[PriceEvidenceRow]] = {}
+    for evidence in price_evidence_rows:
+        if evidence.net_price is None and evidence.brut_price is None:
+            continue
+        key = (
+            normalize_join_key(evidence.supplier_name),
+            normalize_join_key(evidence.item_code),
+            normalize_join_key(evidence.item_name),
+        )
+        groups.setdefault(key, []).append(evidence)
+
+    rows: list[PriceCatalogRow] = []
+    for index, entries in enumerate(groups.values()):
+        supplier_name = entries[0].supplier_name
+        source_file_name = pick_preferred_text([entry.source_file_name for entry in entries]) or entries[0].source_file_name
+        source_type = pick_preferred_text([entry.source_type for entry in entries]) or entries[0].source_type
+        document_id = pick_preferred_text([entry.document_id for entry in entries])
+        document_reference = pick_preferred_text([entry.document_reference for entry in entries])
+        document_date = pick_preferred_text([entry.document_date for entry in entries])
+        item_code = pick_preferred_text([entry.item_code for entry in entries])
+        item_name = pick_preferred_text([entry.item_name for entry in entries])
+        source_party = pick_preferred_text([entry.source_party for entry in entries])
+        currency = pick_preferred_text([entry.currency for entry in entries]) or "EUR"
+        price_source = pick_preferred_text([entry.price_source for entry in entries]) or "Local price evidence"
+
+        brut_prices = [entry.brut_price for entry in entries if entry.brut_price is not None]
+        net_prices = [entry.net_price for entry in entries if entry.net_price is not None]
+        brut_price = brut_prices[0] if brut_prices else None
+        net_price = net_prices[0] if net_prices else None
+
+        rows.append(
+            PriceCatalogRow(
+                supplier_name=supplier_name,
+                source_file_name=source_file_name,
+                source_type=source_type,
+                document_id=document_id,
+                document_date=document_date,
+                document_reference=document_reference,
+                item_code=item_code,
+                item_name=item_name,
+                evidence_count=len(entries),
+                brut_price=brut_price,
+                net_price=net_price,
+                min_brut_price=min(brut_prices) if brut_prices else None,
+                max_brut_price=max(brut_prices) if brut_prices else None,
+                min_net_price=min(net_prices) if net_prices else None,
+                max_net_price=max(net_prices) if net_prices else None,
+                currency=currency,
+                price_source=price_source,
+                source_party=source_party,
+                raw={
+                    "evidenceIds": [
+                        f"{entry.supplier_name}:{entry.source_file_name}:{entry.document_id or 'doc'}:{entry.item_code or entry.item_name or index}"
+                        for entry in entries
+                    ],
+                    "sourceTypes": sorted({entry.source_type for entry in entries}),
+                    "documentReferences": sorted({entry.document_reference for entry in entries if entry.document_reference}),
+                    "itemCodes": sorted({entry.item_code for entry in entries if entry.item_code}),
+                    "itemNames": sorted({entry.item_name for entry in entries if entry.item_name}),
+                },
+            )
+        )
+
+    return sorted(
+        rows,
+        key=lambda row: (
+            row.supplier_name.lower(),
+            (row.item_name or row.item_code or "").lower(),
+            (row.item_code or "").lower(),
+        ),
+    )
+
+
 def build_brand_alias_map(records: list[SupplierRecord], article_strings: list[str]) -> dict[str, str]:
     alias_map = supplier_alias_map(records)
     article_text = " ".join(article_strings[:1000]).upper()
@@ -814,6 +924,7 @@ def main() -> None:
     invoice_paths = sorted((DOC_ROOT / "PLDOCS" / "Dummieboekhouding").glob("*.xml"))
     supplier_order_paths = sorted((DOC_ROOT / "PLDOCS" / "Documenten" / "BUOrderposting").glob("*.xml"))
     price_evidence_rows = extract_price_evidence(invoice_paths, supplier_order_paths, alias_map)
+    price_catalog_rows = build_price_catalog_rows(price_evidence_rows)
 
     suppliers: dict[str, dict[str, Any]] = {}
     for record in supplier_records:
@@ -828,6 +939,9 @@ def main() -> None:
                 "pricedEvidenceCount": 0,
                 "minEvidencePrice": None,
                 "maxEvidencePrice": None,
+                "priceCatalogCount": 0,
+                "minCatalogPrice": None,
+                "maxCatalogPrice": None,
             },
         )
 
@@ -843,6 +957,9 @@ def main() -> None:
                 "pricedEvidenceCount": 0,
                 "minEvidencePrice": None,
                 "maxEvidencePrice": None,
+                "priceCatalogCount": 0,
+                "minCatalogPrice": None,
+                "maxCatalogPrice": None,
             },
         )
         supplier["itemCount"] += 1
@@ -863,6 +980,9 @@ def main() -> None:
                 "pricedEvidenceCount": 0,
                 "minEvidencePrice": None,
                 "maxEvidencePrice": None,
+                "priceCatalogCount": 0,
+                "minCatalogPrice": None,
+                "maxCatalogPrice": None,
             },
         )
         supplier["evidenceCount"] += 1
@@ -871,6 +991,29 @@ def main() -> None:
             price = float(evidence.net_price)
             supplier["minEvidencePrice"] = price if supplier["minEvidencePrice"] is None else min(supplier["minEvidencePrice"], price)
             supplier["maxEvidencePrice"] = price if supplier["maxEvidencePrice"] is None else max(supplier["maxEvidencePrice"], price)
+
+    for row in price_catalog_rows:
+        supplier = suppliers.setdefault(
+            row.supplier_name,
+            {
+                "supplierName": row.supplier_name,
+                "itemCount": 0,
+                "minListPrice": None,
+                "maxListPrice": None,
+                "evidenceCount": 0,
+                "pricedEvidenceCount": 0,
+                "minEvidencePrice": None,
+                "maxEvidencePrice": None,
+                "priceCatalogCount": 0,
+                "minCatalogPrice": None,
+                "maxCatalogPrice": None,
+            },
+        )
+        supplier["priceCatalogCount"] += 1
+        if row.net_price is not None and row.net_price > 0:
+            price = float(row.net_price)
+            supplier["minCatalogPrice"] = price if supplier["minCatalogPrice"] is None else min(supplier["minCatalogPrice"], price)
+            supplier["maxCatalogPrice"] = price if supplier["maxCatalogPrice"] is None else max(supplier["maxCatalogPrice"], price)
 
     supplier_rows = sorted(suppliers.values(), key=lambda item: item["supplierName"].lower())
     workbook_meta = [
@@ -925,6 +1068,7 @@ def main() -> None:
                 "itemCount": supplier["itemCount"],
                 "evidenceCount": supplier["evidenceCount"],
                 "pricedEvidenceCount": supplier["pricedEvidenceCount"],
+                "priceCatalogCount": supplier["priceCatalogCount"],
                 "minListPrice": serialize_decimal(parse_decimal(supplier["minListPrice"]), "0.01")
                 if supplier["minListPrice"] is not None
                 else None,
@@ -936,6 +1080,12 @@ def main() -> None:
                 else None,
                 "maxEvidencePrice": serialize_decimal(parse_decimal(supplier["maxEvidencePrice"]), "0.01")
                 if supplier["maxEvidencePrice"] is not None
+                else None,
+                "minCatalogPrice": serialize_decimal(parse_decimal(supplier["minCatalogPrice"]), "0.01")
+                if supplier["minCatalogPrice"] is not None
+                else None,
+                "maxCatalogPrice": serialize_decimal(parse_decimal(supplier["maxCatalogPrice"]), "0.01")
+                if supplier["maxCatalogPrice"] is not None
                 else None,
             }
             for supplier in supplier_rows
@@ -983,6 +1133,30 @@ def main() -> None:
                 "raw": evidence.raw,
             }
             for evidence in price_evidence_rows
+        ],
+        "priceCatalog": [
+            {
+                "supplierName": row.supplier_name,
+                "sourceFileName": row.source_file_name,
+                "sourceType": row.source_type,
+                "documentId": row.document_id,
+                "documentDate": row.document_date,
+                "documentReference": row.document_reference,
+                "itemCode": row.item_code,
+                "itemName": row.item_name,
+                "evidenceCount": row.evidence_count,
+                "brutPrice": serialize_decimal(row.brut_price, "0.0001"),
+                "netPrice": serialize_decimal(row.net_price, "0.0001"),
+                "minBrutPrice": serialize_decimal(row.min_brut_price, "0.0001"),
+                "maxBrutPrice": serialize_decimal(row.max_brut_price, "0.0001"),
+                "minNetPrice": serialize_decimal(row.min_net_price, "0.0001"),
+                "maxNetPrice": serialize_decimal(row.max_net_price, "0.0001"),
+                "currency": row.currency,
+                "priceSource": row.price_source,
+                "sourceParty": row.source_party,
+                "raw": row.raw,
+            }
+            for row in price_catalog_rows
         ],
     }
 

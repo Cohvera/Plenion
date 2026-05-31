@@ -54,11 +54,35 @@ export type PlenionSupplierCatalogEvidenceRow = {
   raw?: unknown;
 };
 
+export type PlenionSupplierCatalogPriceRow = {
+  id: string;
+  supplierName: string;
+  sourceFileName: string;
+  sourceType: string;
+  documentId: string | null;
+  documentDate: string | null;
+  documentReference: string | null;
+  itemCode: string | null;
+  itemName: string | null;
+  evidenceCount: number;
+  brutPrice: number | null;
+  netPrice: number | null;
+  minBrutPrice: number | null;
+  maxBrutPrice: number | null;
+  minNetPrice: number | null;
+  maxNetPrice: number | null;
+  currency: string;
+  priceSource: string;
+  sourceParty: string | null;
+  raw?: unknown;
+};
+
 export type PlenionSupplierCatalogItemDetail = {
   snapshot: CatalogSnapshotRecord;
   item: PlenionSupplierCatalogRow & { raw: unknown };
   relatedItems: PlenionSupplierCatalogRow[];
   relatedEvidence: PlenionSupplierCatalogEvidenceRow[];
+  relatedPriceCatalog: PlenionSupplierCatalogPriceRow[];
 };
 
 export type PlenionSupplierCatalogData = {
@@ -75,11 +99,15 @@ export type PlenionSupplierCatalogData = {
     maxListPrice: number;
     evidenceCount: number;
     pricedEvidenceCount: number;
+    priceCatalogCount: number;
     minEvidencePrice: number;
     maxEvidencePrice: number;
+    minCatalogPrice: number;
+    maxCatalogPrice: number;
   }>;
   items: PlenionSupplierCatalogRow[];
   priceEvidence: PlenionSupplierCatalogEvidenceRow[];
+  priceCatalog: PlenionSupplierCatalogPriceRow[];
   query: {
     q: string;
     supplier: string;
@@ -107,8 +135,11 @@ type RawCatalog = {
     maxListPrice: string | null;
     evidenceCount: number;
     pricedEvidenceCount: number;
+    priceCatalogCount: number;
     minEvidencePrice: string | null;
     maxEvidencePrice: string | null;
+    minCatalogPrice: string | null;
+    maxCatalogPrice: string | null;
   }>;
   items: Array<{
     supplierName: string;
@@ -143,6 +174,27 @@ type RawCatalog = {
     brutPrice: string | null;
     netPrice: string | null;
     vatRate: string | null;
+    currency: string;
+    priceSource: string;
+    sourceParty: string | null;
+    raw?: unknown;
+  }>;
+  priceCatalog: Array<{
+    supplierName: string;
+    sourceFileName: string;
+    sourceType: string;
+    documentId: string | null;
+    documentDate: string | null;
+    documentReference: string | null;
+    itemCode: string | null;
+    itemName: string | null;
+    evidenceCount: number;
+    brutPrice: string | null;
+    netPrice: string | null;
+    minBrutPrice: string | null;
+    maxBrutPrice: string | null;
+    minNetPrice: string | null;
+    maxNetPrice: string | null;
     currency: string;
     priceSource: string;
     sourceParty: string | null;
@@ -246,6 +298,52 @@ function mapEvidence(row: {
   };
 }
 
+function mapPriceCatalog(row: {
+  id: string;
+  supplierName: string;
+  sourceFileName: string;
+  sourceType: string;
+  documentId: string | null;
+  documentDate: string | null;
+  documentReference: string | null;
+  itemCode: string | null;
+  itemName: string | null;
+  evidenceCount: number;
+  brutPrice: unknown;
+  netPrice: unknown;
+  minBrutPrice: unknown;
+  maxBrutPrice: unknown;
+  minNetPrice: unknown;
+  maxNetPrice: unknown;
+  currency: string;
+  priceSource: string;
+  sourceParty: string | null;
+  raw?: unknown;
+}) {
+  return {
+    id: row.id,
+    supplierName: row.supplierName,
+    sourceFileName: row.sourceFileName,
+    sourceType: row.sourceType,
+    documentId: row.documentId,
+    documentDate: row.documentDate,
+    documentReference: row.documentReference,
+    itemCode: row.itemCode,
+    itemName: row.itemName,
+    evidenceCount: row.evidenceCount,
+    brutPrice: row.brutPrice == null ? null : toNumber(row.brutPrice),
+    netPrice: row.netPrice == null ? null : toNumber(row.netPrice),
+    minBrutPrice: row.minBrutPrice == null ? null : toNumber(row.minBrutPrice),
+    maxBrutPrice: row.maxBrutPrice == null ? null : toNumber(row.maxBrutPrice),
+    minNetPrice: row.minNetPrice == null ? null : toNumber(row.minNetPrice),
+    maxNetPrice: row.maxNetPrice == null ? null : toNumber(row.maxNetPrice),
+    currency: row.currency,
+    priceSource: row.priceSource,
+    sourceParty: row.sourceParty,
+    raw: row.raw
+  };
+}
+
 function buildSearchWhere(q: string, supplier: string, items: PlenionSupplierCatalogRow[]) {
   const normalizedQ = q.toLowerCase();
   const normalizedSupplier = supplier.toLowerCase();
@@ -303,6 +401,37 @@ function buildEvidenceSearchWhere(
   });
 }
 
+function buildPriceCatalogSearchWhere(
+  q: string,
+  supplier: string,
+  catalog: PlenionSupplierCatalogPriceRow[]
+) {
+  const normalizedQ = q.toLowerCase();
+  const normalizedSupplier = supplier.toLowerCase();
+
+  return catalog.filter((entry) => {
+    if (normalizedSupplier && entry.supplierName.toLowerCase() !== normalizedSupplier) {
+      return false;
+    }
+    if (!normalizedQ) return true;
+    const haystack = [
+      entry.itemCode,
+      entry.itemName,
+      entry.documentId,
+      entry.documentReference,
+      entry.sourceFileName,
+      entry.sourceParty,
+      entry.priceSource,
+      entry.sourceType,
+      entry.supplierName
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(normalizedQ);
+  });
+}
+
 async function loadCatalog(): Promise<RawCatalog | null> {
   try {
     const text = await readFile(DATA_PATH, "utf-8");
@@ -336,9 +465,16 @@ export async function getLatestPlenionSupplierCatalogData(options?: {
       ...entry
     })
   }));
+  const allPriceCatalog = raw.priceCatalog.map((entry, index) => ({
+    ...mapPriceCatalog({
+      id: `${entry.supplierName}:${entry.sourceFileName}:${entry.documentId ?? "doc"}:${entry.itemCode ?? entry.itemName ?? index}`,
+      ...entry
+    })
+  }));
 
   const items = buildSearchWhere(q, supplier, allItems);
   const priceEvidence = buildEvidenceSearchWhere(q, supplier, allEvidence);
+  const priceCatalog = buildPriceCatalogSearchWhere(q, supplier, allPriceCatalog);
 
   const suppliers = raw.suppliers.map((supplierEntry) => ({
     supplierName: supplierEntry.supplierName,
@@ -347,8 +483,11 @@ export async function getLatestPlenionSupplierCatalogData(options?: {
     maxListPrice: supplierEntry.maxListPrice == null ? 0 : toNumber(supplierEntry.maxListPrice),
     evidenceCount: supplierEntry.evidenceCount,
     pricedEvidenceCount: supplierEntry.pricedEvidenceCount,
+    priceCatalogCount: supplierEntry.priceCatalogCount,
     minEvidencePrice: supplierEntry.minEvidencePrice == null ? 0 : toNumber(supplierEntry.minEvidencePrice),
-    maxEvidencePrice: supplierEntry.maxEvidencePrice == null ? 0 : toNumber(supplierEntry.maxEvidencePrice)
+    maxEvidencePrice: supplierEntry.maxEvidencePrice == null ? 0 : toNumber(supplierEntry.maxEvidencePrice),
+    minCatalogPrice: supplierEntry.minCatalogPrice == null ? 0 : toNumber(supplierEntry.minCatalogPrice),
+    maxCatalogPrice: supplierEntry.maxCatalogPrice == null ? 0 : toNumber(supplierEntry.maxCatalogPrice)
   }));
 
   return {
@@ -368,6 +507,7 @@ export async function getLatestPlenionSupplierCatalogData(options?: {
     suppliers,
     items,
     priceEvidence,
+    priceCatalog,
     query: {
       q,
       supplier
@@ -395,6 +535,12 @@ export async function getPlenionSupplierCatalogItemDetail(
       ...entry
     })
   }));
+  const allPriceCatalog = raw.priceCatalog.map((entry, index) => ({
+    ...mapPriceCatalog({
+      id: `${entry.supplierName}:${entry.sourceFileName}:${entry.documentId ?? "doc"}:${entry.itemCode ?? entry.itemName ?? index}`,
+      ...entry
+    })
+  }));
 
   const item = allItems.find((entry) => entry.id === id);
   if (!item) return null;
@@ -403,6 +549,9 @@ export async function getPlenionSupplierCatalogItemDetail(
     .filter((entry) => entry.supplierName === item.supplierName && entry.id !== item.id)
     .slice(0, 8);
   const relatedEvidence = allEvidence
+    .filter((entry) => entry.supplierName === item.supplierName || entry.itemCode === item.itemCode)
+    .slice(0, 8);
+  const relatedPriceCatalog = allPriceCatalog
     .filter((entry) => entry.supplierName === item.supplierName || entry.itemCode === item.itemCode)
     .slice(0, 8);
 
@@ -420,6 +569,7 @@ export async function getPlenionSupplierCatalogItemDetail(
       raw: raw.items.find((candidate, index) => `${candidate.supplierName}:${candidate.itemCode}:${index}` === id)?.raw
     },
     relatedItems,
-    relatedEvidence
+    relatedEvidence,
+    relatedPriceCatalog
   };
 }

@@ -49,6 +49,7 @@ export default async function CatalogItemPage({
   }
 
   const discountText = detail.item.discountRate == null ? "n/a" : `${(detail.item.discountRate * 100).toFixed(1)}%`;
+  const matchedPrice = detail.relatedPriceCatalog[0] ?? null;
 
   return (
     <div className="grid gap-6">
@@ -70,14 +71,24 @@ export default async function CatalogItemPage({
           <p className="field-label">Price summary</p>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="Brut/list price" value={formatPrice(detail.item.listPrice)} />
-          <InfoCard label="Net price" value={formatPrice(detail.item.netPrice)} />
+          <InfoCard
+            label="Brut/list price"
+            value={formatPrice(matchedPrice?.brutPrice ?? detail.item.listPrice)}
+          />
+          <InfoCard label="Net price" value={formatPrice(matchedPrice?.netPrice ?? detail.item.netPrice)} />
           <InfoCard label="Discount" value={discountText} />
           <InfoCard label="Currency" value={detail.item.currency} />
           <InfoCard label="Series" value={detail.item.series ?? "No series"} />
           <InfoCard label="Type" value={detail.item.type ?? "No type"} />
           <InfoCard label="Model range" value={detail.item.modelRange ?? "No model range"} />
-          <InfoCard label="Source row" value={`${detail.item.sourceFileName} / row ${detail.item.sourceRow}`} />
+          <InfoCard
+            label="Source row"
+            value={`${detail.item.sourceFileName} / row ${detail.item.sourceRow}`}
+          />
+          <InfoCard
+            label="Price matches"
+            value={`${detail.relatedPriceCatalog.length} local price rows`}
+          />
         </div>
       </section>
 
@@ -126,6 +137,34 @@ export default async function CatalogItemPage({
                 <p className="mt-1 text-xs text-steel">{item.itemNameNl ?? item.itemNameFr ?? "No description"}</p>
                 <p className="mt-2 text-sm font-semibold text-ink">{formatPrice(item.listPrice)}</p>
               </Link>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="panel p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="field-label">Matched prices</p>
+            <h3 className="text-lg font-bold text-ink">Local price rows for this item or supplier</h3>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {detail.relatedPriceCatalog.length === 0 ? (
+            <p className="text-sm text-steel">No aggregated price rows found yet.</p>
+          ) : (
+            detail.relatedPriceCatalog.map((entry) => (
+              <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-ink">{entry.itemName ?? entry.itemCode ?? "No item name"}</p>
+                <p className="mt-1 text-xs text-steel">{entry.sourceFileName}</p>
+                <p className="mt-2 text-sm font-semibold text-ink">
+                  Brut {formatPrice(entry.brutPrice ?? 0)} / Net {formatPrice(entry.netPrice ?? 0)}
+                </p>
+                <p className="mt-1 text-xs text-steel">
+                  {entry.evidenceCount} evidence rows
+                  {entry.documentReference ? ` - ${entry.documentReference}` : ""}
+                </p>
+              </div>
             ))
           )}
         </div>
