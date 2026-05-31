@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cohvera
+      POSTGRES_USER: cohvera
+      POSTGRES_PASSWORD: cohvera
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cohvera -d cohvera"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://cohvera:cohvera@db:5432/cohvera?schema=public
+      DEMO_USER_EMAIL: lotte@warco.be
+      HOSTNAME: 0.0.0.0
+      UPLOAD_DIR: /app/uploads
+    expose:
+      - "${APP_PORT:-3000}"
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      default:
+      web:
+        aliases:
+          - "${APP_NAME:-cohvera}"
+
+networks:
+  web:
+    external: true
+
+volumes:
+  postgres-data:
+  uploads:

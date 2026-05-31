@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plenion Reporting Cockpit</title>
+    <style>
+      :root {
+        --bg: #f3f6fb;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --panel: rgba(255, 255, 255, 0.88);
+        --line: rgba(148, 163, 184, 0.22);
+        --emerald: #10b981;
+        --sky: #0ea5e9;
+        --slate: #1e293b;
+        --shadow: 0 24px 80px rgba(15, 23, 42, 0.12);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top right, rgba(16, 185, 129, 0.18), transparent 24%),
+          radial-gradient(circle at 20% 18%, rgba(14, 165, 233, 0.16), transparent 22%),
+          linear-gradient(180deg, #eef3f8, #f8fbfe 44%, #edf2f7 100%);
+        color: var(--ink);
+      }
+
+      .page {
+        max-width: 1380px;
+        margin: 0 auto;
+        padding: 28px 20px 40px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 28px;
+        background:
+          linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.84)),
+          radial-gradient(circle at 90% 0%, rgba(16, 185, 129, 0.32), transparent 25%);
+        color: white;
+        box-shadow: var(--shadow);
+      }
+
+      .hero-inner {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 28px;
+        padding: 28px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #c7f9e7;
+        text-transform: uppercase;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+      }
+
+      h1 {
+        margin: 18px 0 12px;
+        font-size: clamp(2.2rem, 5vw, 4.25rem);
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+      }
+
+      .lede {
+        max-width: 66ch;
+        font-size: 1rem;
+        line-height: 1.65;
+        color: #d2dae7;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        height: 44px;
+        padding: 0 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .btn.primary { background: #9ef0cf; color: #04130c; }
+      .btn.secondary { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: white; }
+
+      .cards {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+      }
+
+      .metric, .panel {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        box-shadow: var(--shadow);
+      }
+
+      .metric {
+        padding: 16px;
+        border-radius: 20px;
+      }
+
+      .metric .label {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .metric .value {
+        margin: 10px 0 6px;
+        font-size: 28px;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+      }
+
+      .metric .detail {
+        margin: 0;
+        color: #475569;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .grid-2 {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: 1.1fr 0.9fr;
+        margin-top: 20px;
+      }
+
+      .panel {
+        border-radius: 24px;
+        overflow: hidden;
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 20px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+      }
+
+      .panel-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 850;
+        letter-spacing: -0.03em;
+      }
+
+      .panel-sub {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .panel-body { padding: 18px 20px 20px; }
+
+      .bar-row { margin-bottom: 16px; }
+      .bar-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+      .bar-meta strong { font-weight: 800; }
+      .bar {
+        height: 11px;
+        margin-top: 8px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.17);
+        overflow: hidden;
+      }
+      .fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--emerald), var(--sky));
+      }
+
+      .steps {
+        display: grid;
+        gap: 10px;
+      }
+      .step {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255,255,255,0.75);
+      }
+      .num {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: var(--slate);
+        color: white;
+        font-weight: 800;
+      }
+      .step p { margin: 0; color: #334155; font-size: 14px; line-height: 1.55; }
+
+      .report-list {
+        display: grid;
+        gap: 12px;
+      }
+      .report {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255,255,255,0.74);
+      }
+      .report h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 800;
+      }
+      .report p {
+        margin: 6px 0 0;
+        color: #475569;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .domains {
+        display: grid;
+        gap: 12px;
+      }
+      .domain {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255,255,255,0.78);
+      }
+      .domain-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .domain-top strong { font-size: 15px; }
+      .domain-top span { color: var(--muted); font-size: 13px; }
+      .domain p { margin: 10px 0 0; color: #334155; font-size: 13px; line-height: 1.5; }
+      .confidence { font-weight: 900; color: #0f172a; }
+
+      .footer {
+        margin-top: 20px;
+        padding: 0 4px;
+        color: #64748b;
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        .hero-inner, .grid-2, .report { grid-template-columns: 1fr; }
+      }
+
+      @media (max-width: 720px) {
+        .page { padding: 14px; }
+        .hero-inner { padding: 20px; }
+        .cards { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-inner">
+          <div>
+            <div class="eyebrow">Plenion reporting cockpit</div>
+            <h1>Turn the Plenion backup into a PostgreSQL reporting stack.</h1>
+            <p class="lede">
+              This preview is grounded in the actual backup we found: HFSQL source
+              files, existing report templates, document archives, and the tables
+              needed for finance, operations, projects, stock and compliance
+              reporting. The goal is to move from source backup to raw layer,
+              then into reusable marts and dashboards.
+            </p>
+            <div class="actions">
+              <a class="btn primary" href="#report-pack">View report pack</a>
+              <a class="btn secondary" href="#warehouse">Warehouse design</a>
+            </div>
+          </div>
+
+          <div class="cards">
+            <div class="metric">
+              <p class="label">Core source system</p>
+              <div class="value">Tomme_Energie</div>
+              <p class="detail">HFSQL backup identified from backup/203/backup.info</p>
+            </div>
+            <div class="metric">
+              <p class="label">Warehouse layers</p>
+              <div class="value">3</div>
+              <p class="detail">raw, dw and mart layers ready for PostgreSQL</p>
+            </div>
+            <div class="metric">
+              <p class="label">Priority dashboards</p>
+              <div class="value">5</div>
+              <p class="detail">management, finance, operations, stock and compliance</p>
+            </div>
+            <div class="metric">
+              <p class="label">Template reports found</p>
+              <div class="value">8+</div>
+              <p class="detail">existing report definitions already in PLDOCS/Reports</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-2" id="warehouse">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-title">Extraction footprint</p>
+              <p class="panel-sub">Where the backup lives</p>
+            </div>
+            <div class="badge">Backup inventory</div>
+          </div>
+          <div class="panel-body">
+            <div class="bar-row">
+              <div class="bar-meta"><strong>HFSERVER</strong><span>8.744 GB</span></div>
+              <div class="bar"><div class="fill" style="width: 100%"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-meta"><strong>backup</strong><span>4.492 GB</span></div>
+              <div class="bar"><div class="fill" style="width: 51.4%"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-meta"><strong>Update</strong><span>2.331 GB</span></div>
+              <div class="bar"><div class="fill" style="width: 26.7%"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-meta"><strong>PLDOCS</strong><span>2.096 GB</span></div>
+              <div class="bar"><div class="fill" style="width: 24.0%"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-meta"><strong>PLSERVER</strong><span>1.565 GB</span></div>
+              <div class="bar"><div class="fill" style="width: 17.9%"></div></div>
+            </div>
+            <div class="bar-row" style="margin-bottom: 0">
+              <div class="bar-meta"><strong>Webservice</strong><span>0.007 GB</span></div>
+              <div class="bar"><div class="fill" style="width: 0.08%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-title">Pipeline</p>
+              <p class="panel-sub">From backup to dashboard</p>
+            </div>
+            <div class="badge">ETL flow</div>
+          </div>
+          <div class="panel-body steps">
+            <div class="step"><div class="num">1</div><p>Restore the HFSQL backup into a running HFSQL server.</p></div>
+            <div class="step"><div class="num">2</div><p>Replicate the source tables into PostgreSQL raw schemas.</p></div>
+            <div class="step"><div class="num">3</div><p>Build conformed dimensions for customer, project, user and article.</p></div>
+            <div class="step"><div class="num">4</div><p>Publish marts for invoices, work orders, stock and compliance.</p></div>
+            <div class="step"><div class="num">5</div><p>Render dashboards in the app and later connect BI tools.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-2" style="margin-top: 20px;">
+        <div class="panel" id="report-pack">
+          <div class="panel-head">
+            <div>
+              <p class="panel-title">First report pack</p>
+              <p class="panel-sub">The first dashboards we can ship</p>
+            </div>
+            <div class="badge">Concrete outputs</div>
+          </div>
+          <div class="panel-body report-list">
+            <div class="report">
+              <div>
+                <h3>Management dashboard</h3>
+                <p>Revenue, backlog, project margin and open work orders.</p>
+              </div>
+              <div><span class="badge">FAK/L, BON/L, PROJ, KLANT</span></div>
+            </div>
+            <div class="report">
+              <div>
+                <h3>Finance dashboard</h3>
+                <p>Invoice totals, credits, VAT, overdue balance, margin.</p>
+              </div>
+              <div><span class="badge">FAK/L, FAKB/C/D, HFAK*</span></div>
+            </div>
+            <div class="report">
+              <div>
+                <h3>Operations dashboard</h3>
+                <p>Aging, SLA breaches, task load, technician capacity.</p>
+              </div>
+              <div><span class="badge">BON/L, TAAK*, PLANNING, RESOURCE*</span></div>
+            </div>
+            <div class="report">
+              <div>
+                <h3>Stock dashboard</h3>
+                <p>Stock value, fast movers, supplier consistency.</p>
+              </div>
+              <div><span class="badge">VRRD, VRRDL, MAGAZIJNLOCATIE, LEV</span></div>
+            </div>
+            <div class="report">
+              <div>
+                <h3>Compliance dashboard</h3>
+                <p>Measurements due, overdue certificates, pass rate.</p>
+              </div>
+              <div><span class="badge">METING*, WERK*, CONTFAK, CONT_KWAL</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-title">Source domains</p>
+              <p class="panel-sub">Coverage discovered in the backup</p>
+            </div>
+            <div class="badge">Mapping confidence</div>
+          </div>
+          <div class="panel-body domains">
+            <div class="domain">
+              <div class="domain-top"><strong>Finance</strong><span class="confidence">92%</span></div>
+              <span>FAK, FAKL, FAKB, FAKC, FAKD</span>
+              <p>Ready for invoice mart.</p>
+            </div>
+            <div class="domain">
+              <div class="domain-top"><strong>Work orders</strong><span class="confidence">90%</span></div>
+              <span>BON, BONL, BON_LOG, BONTMP</span>
+              <p>Ready for service analytics.</p>
+            </div>
+            <div class="domain">
+              <div class="domain-top"><strong>Projects</strong><span class="confidence">88%</span></div>
+              <span>PROJ, PROJ_RUBR, PROJ_BUDGET, PROJ_PREST</span>
+              <p>Ready for margin analysis.</p>
+            </div>
+            <div class="domain">
+              <div class="domain-top"><strong>Stock</strong><span class="confidence">84%</span></div>
+              <span>VRRD, VRRDL, MAGAZIJNLOCATIE, LOT</span>
+              <p>Ready for inventory views.</p>
+            </div>
+            <div class="domain">
+              <div class="domain-top"><strong>Master data</strong><span class="confidence">95%</span></div>
+              <span>KLANT, LEV, ARTIKEL, CONTACT</span>
+              <p>Ready for dimension build.</p>
+            </div>
+            <div class="domain">
+              <div class="domain-top"><strong>Compliance</strong><span class="confidence">81%</span></div>
+              <span>METING*, WERK*, KPI, STAT*</span>
+              <p>Ready for due-date tracking.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        Concrete next step: restore HFSQL into a server, land raw tables in PostgreSQL, then publish the marts above.
+      </div>
+    </main>
+  </body>
+</html>

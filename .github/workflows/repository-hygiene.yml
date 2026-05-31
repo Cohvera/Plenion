@@ -1,0 +1,57 @@
+name: Repository hygiene
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required files
+        run: |
+          test -f README.md
+          test -f .editorconfig
+          test -f .gitignore
+          test -f src/app/page.tsx
+          test -f src/app/globals.css
+          test -f Dockerfile
+          test -f docker-compose.yml
+          test -f prisma/schema.prisma
+
+      - name: Validate TypeScript configuration
+        run: |
+          test -f tsconfig.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate Prisma schema
+        env:
+          DATABASE_URL: postgresql://cohvera:cohvera@localhost:5432/cohvera?schema=public
+        run: npx prisma validate
+
+      - name: Build application
+        env:
+          DATABASE_URL: postgresql://cohvera:cohvera@localhost:5432/cohvera?schema=public
+          DEMO_USER_EMAIL: lotte@warco.be
+        run: npm run build
+
+      - name: Check for trailing whitespace
+        run: |
+          if git grep -n '[[:blank:]]$' -- . ':!*.md'; then
+            echo "Trailing whitespace found."
+            exit 1
+          fi

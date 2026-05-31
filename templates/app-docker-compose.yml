@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    expose:
+      - "${APP_PORT:-3000}"
+    networks:
+      web:
+        aliases:
+          - "${APP_NAME}"
+
+networks:
+  web:
+    external: true
